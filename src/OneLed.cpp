@@ -50,7 +50,10 @@ void OneLed::toggleMax(){
 	// Serial.println(mediumLevel);
 	statLed == StatLed::ON;
 }
-
+//-------------------------------------------------------
+bool OneLed::getStatOn(){
+    return (statLed == StatLed::ON) && (levelDim > nightLevel);
+}
 //***********************************************
 bool OneLed::trigger(){
 	switch (statLed) {

@@ -8,7 +8,7 @@
 #include <Arduino.h>
 #include <vector>
 
-const int16_t LEVEL_LIGHT = 120;
+const int16_t LEVEL_LIGHT = 40;
 const int16_t D_LEVEL_LIGHT = 10;
 
 enum class Status { OFF, ON, AUTO };
@@ -43,6 +43,7 @@ public:
     int16_t triggerAuto();
     void setLux(float l);
     void setLidar(int16_t mm);
+    void clearPr(){presence = false;}; //сброс движения
     void setMotion(bool st);
     void extLightOn();
     void setNightLevelOn();

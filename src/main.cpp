@@ -207,7 +207,7 @@ void loop()
     tLux.setTimer();
     lux = lightMeter.readLightLevel();
     light_1.setLux(lux);
-    client.publish(msg_light, String(lux).c_str());
+    // client.publish(msg_light, String(lux).c_str());
         // Serial.print("lux = ");
         // Serial.println(lux);
   }

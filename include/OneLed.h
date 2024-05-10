@@ -34,6 +34,7 @@ public:
 	int getPin() { return pin; }
 	int getLevelDim(){return levelDim;}
 	StatLed getStat(){return statLed;}
+	bool getStatOn();
 	void setStat(StatLed stat);
 	bool trigger();	//изменение состояния на обратное
 	void toggleMax();

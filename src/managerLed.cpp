@@ -116,46 +116,40 @@ bool ManagerLed::cycle(){
         extLight = false;
     }
     if(queue.size() > 0){
-    // Serial.print("size = ");
-    // Serial.print(queue.size());
-    // Serial.print(", d = ");
-    // Serial.print(queue[0]);
-    // Serial.print(", res = ");
-    // Serial.println(res);
         for(auto d: queue){
             switch(d){
                 case Events::BUTTOM: break;
                 case Events::LIDAR: 
-                    if(presence && (stat == Status::AUTO) && !light){
-                        OneLed::setStat(StatLed::ON);
-                        OneLed::setMediumLevel();   
-                        extLight = false;
-                    } else if(presence && (stat == Status::AUTO) && light){
-                        OneLed::setStat(StatLed::OFF);
+                    if(presence && (stat == Status::AUTO)){
+                        if(!light){
+                            OneLed::setStat(StatLed::ON);
+                            OneLed::setMediumLevel();   
+                            extLight = false;
+                        } else {
+                            OneLed::setOff();
+                        }
                     }
                     break;
                 case Events::MOVE:
                     if( res ){
-                        if(stat == Status::AUTO && (OneLed::getStat() == StatLed::OFF) && !light){
+                        if(stat == Status::AUTO && !OneLed::getStatOn() && !light){
                             OneLed::setStat(StatLed::ON);
                             extLight = false;
-                            if(nowDay())
-                                OneLed::setMediumLevel();
-                            else
-                                OneLed::setNightLevel();
+                            // if(nowDay())
+                            OneLed::setMediumLevel();
+                            // else
+                            //     OneLed::setNightLevel();
                         }
                     } else {
                         pSensor->read();
                         // Serial.print((*pSensor).ranging_data.range_status != VL53L1X::RangeStatus::RangeValid);
                         // Serial.print(", mm = ");
                         // Serial.println((*pSensor).ranging_data.range_mm);
-                        // if(((*pSensor).ranging_data.range_status != VL53L1X::RangeStatus::RangeValid)
-                        //     || ((*pSensor).ranging_data.range_mm > MAX_LENGTH))
-                        if((*pSensor).ranging_data.range_mm > MAX_LENGTH)
-                            {
-                            if(stat == Status::AUTO){
-                                OneLed::setStat(StatLed::OFF);
-                            }
+                        if(((*pSensor).ranging_data.range_status != VL53L1X::RangeStatus::RangeValid)
+                            || ((*pSensor).ranging_data.range_mm > MAX_LENGTH)){
+                                if(stat == Status::AUTO){
+                                    OneLed::setOff();
+                                }
                         }
                     }
                     break;
@@ -184,14 +178,16 @@ bool ManagerLed::getStat(){
 }
 //--------------------------------------------------------
 void ManagerLed::setLux(float l){
-    if(l < LEVEL_LIGHT - D_LEVEL_LIGHT ) {
-        queue.push_back(Events::LIGHT);
-        light = false;
-    } else if( l > LEVEL_LIGHT + D_LEVEL_LIGHT) {
-        queue.push_back(Events::LIGHT);
-        light = true;
+    if(abs(lux - l) > D_LEVEL_LIGHT){
+        if(l < LEVEL_LIGHT - D_LEVEL_LIGHT ) {
+            queue.push_back(Events::LIGHT);
+            light = false;
+        } else if( l > LEVEL_LIGHT + D_LEVEL_LIGHT) {
+            queue.push_back(Events::LIGHT);
+            light = true;
+        }
+        lux = l; 
     }
-    lux = l; 
 }
 //------------------------------------------------------------------------
 bool ManagerLed::nowDay(){
