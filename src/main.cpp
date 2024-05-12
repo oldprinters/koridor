@@ -77,8 +77,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
     str += (char)payload[i];
   }
 
-  if(strTopic == msgMotion){
-  } else if(strTopic == msgHSMotion){
+  if(strTopic == msgHSMotion){
     light_1.extLightOn();
   } else if(strTopic == msgLightOff){
   } else if(strTopic == msgLightOn){
@@ -98,7 +97,6 @@ void reconnect_mqtt() {
       Serial.println(clientId);
       if (client.connect(clientId.c_str())) {
         Serial.println("connected");
-        client.subscribe(msgMotion, 0);
         client.subscribe(msgHSMotion, 0);
         client.subscribe(msgLightOff, 0);
         client.subscribe(msgLightOn, 0);
@@ -206,8 +204,8 @@ void loop()
   if (tLux.getTimer() && lightMeter.measurementReady()) {
     tLux.setTimer();
     lux = lightMeter.readLightLevel();
-    light_1.setLux(lux);
-    // client.publish(msg_light, String(lux).c_str());
+    if(light_1.setLux(lux))
+      client.publish(msg_light, String(lux).c_str());
         // Serial.print("lux = ");
         // Serial.println(lux);
   }
