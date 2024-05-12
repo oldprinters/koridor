@@ -8,7 +8,7 @@
 #include <Arduino.h>
 #include <vector>
 
-const int16_t LEVEL_LIGHT = 40;
+const int16_t LEVEL_LIGHT = 20;
 const int16_t D_LEVEL_LIGHT = 10;
 
 enum class Status { OFF, ON, AUTO };

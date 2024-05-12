@@ -146,7 +146,7 @@ bool ManagerLed::cycle(){
                         // Serial.print(", mm = ");
                         // Serial.println((*pSensor).ranging_data.range_mm);
                         if(((*pSensor).ranging_data.range_status != VL53L1X::RangeStatus::RangeValid)
-                            || ((*pSensor).ranging_data.range_mm > MAX_LENGTH)){
+                            && ((*pSensor).ranging_data.range_mm > MAX_LENGTH)){
                                 if(stat == Status::AUTO){
                                     OneLed::setOff();
                                 }
@@ -178,16 +178,17 @@ bool ManagerLed::getStat(){
 }
 //--------------------------------------------------------
 void ManagerLed::setLux(float l){
-    if(abs(lux - l) > D_LEVEL_LIGHT){
-        if(l < LEVEL_LIGHT - D_LEVEL_LIGHT ) {
-            queue.push_back(Events::LIGHT);
-            light = false;
-        } else if( l > LEVEL_LIGHT + D_LEVEL_LIGHT) {
-            queue.push_back(Events::LIGHT);
-            light = true;
-        }
-        lux = l; 
+    int dlight = light;
+    if(l < LEVEL_LIGHT - D_LEVEL_LIGHT ) {
+        light = false;
+    } else if( l > LEVEL_LIGHT + D_LEVEL_LIGHT) {
+        light = true;
     }
+    if(dlight != light)
+        queue.push_back(Events::LIGHT);
+    lux = l; 
+    // Serial.print("light = ");
+    // Serial.println(light);
 }
 //------------------------------------------------------------------------
 bool ManagerLed::nowDay(){
