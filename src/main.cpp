@@ -58,7 +58,7 @@ const int16_t MEDIUM_LEVEL = 100;
 ManagerLed light_1(pinLed, 0, MEDIUM_LEVEL, &timeClient);
 //*********************************************
 void IRAM_ATTR button_interr_1(){ //IRAM_ATTR
-    detachInterrupt(pinBut1);
+  detachInterrupt(pinBut1);
   ft_1_dr = 2;
   if(!ft_1){
     ft_1 = 3;

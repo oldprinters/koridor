@@ -153,9 +153,10 @@ bool ManagerLed::cycle(){
                         }
                     }
                     break;
-                case Events::LIGHT: if(stat == Status::AUTO && !OneLed::getStatOn() && !light && 
-                ((*pSensor).ranging_data.range_status == VL53L1X::RangeStatus::RangeValid) &&
-                ((*pSensor).ranging_data.range_mm < MAX_LENGTH)){
+                case Events::LIGHT: 
+                    if(stat == Status::AUTO && !OneLed::getStatOn() && !light && 
+                    ((*pSensor).ranging_data.range_status == VL53L1X::RangeStatus::RangeValid) &&
+                    ((*pSensor).ranging_data.range_mm < MAX_LENGTH)){
                         OneLed::setStat(StatLed::ON);
                         OneLed::setMediumLevel();
                         extLight = false;
@@ -189,7 +190,6 @@ bool ManagerLed::setLux(float l){
         queue.push_back(Events::LIGHT);
         res = true;
     }
-    lux = l; 
     // Serial.print("light = ");
     // Serial.println(light);
     return res;

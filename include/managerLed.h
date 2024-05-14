@@ -19,7 +19,6 @@ class ManagerLed: OneLed {
     Status stat{Status::AUTO};
     Timer timerExtern;    //свет на внешние воздействие
     bool extLight{false};       //свет включен по внешней команде
-    int16_t lux{200};         //освещённость
     bool movement{false};   //движение
     bool presence{false};   //присутствие в зоне лидара
     bool light{false};      //светло
