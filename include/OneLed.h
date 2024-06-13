@@ -9,7 +9,7 @@
 // #else
 // 	#include "WProgram.h"
 // #endif
-#define TIMER_T 20
+#define TIMER_T 50
 enum class StatLed { OFF, ON };
 enum class StatPower { OFF, ON, MOVE, PAUSE_OFF, DIST };
 
@@ -25,7 +25,7 @@ class OneLed: public Timer
 	StatLed statLed { StatLed::ON };
 	int ledChannel = 0;
 	const int resolution = 8;
-	const int freq = 500;
+	const int freq = 100;
 public:
 	OneLed(int p);
 	OneLed(int p, int ch);
@@ -47,7 +47,7 @@ public:
 	void setMaxLevel(int i);
 	int getMaxLevel(){return maxLevel;}
 	virtual bool cycle();
-	int arDt[5]={ 1, 1, 2, 3, 5};
+	int arDt[6]={ 1, 1, 2, 3, 5, 10};
 };
 
 #endif

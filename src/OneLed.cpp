@@ -89,10 +89,12 @@ bool OneLed::cycle() {
 		if (getTimer()) {
 			setTimer();
 			int dt = arDt[int(std::floor(level / 50))];
-			if(level - dt < 0 || level + dt > levelDim)dt = 1;
+			if(level - dt < 0)dt = 1;
+			if((level < levelDim) && (level + dt > levelDim))
+				dt = levelDim - level;
 			level += (level < levelDim? dt: -1 * dt);
+			ledcWrite(ledChannel, level); //14.05.2024 ptr
 		}
-		ledcWrite(ledChannel, level); //29.06.23 ptr
 		return true;
 	} else {
 		return false;

@@ -25,7 +25,6 @@ class ManagerLed: OneLed {
     bool changesMade{false};
     MoveStat* moveStat;
     VL53L1X* pSensor{nullptr};       //указатель на lidar
-    std::vector<Events> queue;
     NTPClient *pNtpClient{nullptr};
 public:
     ManagerLed(int8_t p, NTPClient *pNtp);
@@ -33,10 +32,7 @@ public:
 	ManagerLed(int8_t p, int8_t ch, int8_t medium, NTPClient *pNtp);
     ~ManagerLed(){delete moveStat;}
     void init();
-    bool getChangesMade(){return changesMade;}
-    int8_t getQueueSize(){return queue.size();}
     const char* getModeName();
-    void printQueue();
     void linkLidar(VL53L1X* pS);
     int16_t clickBut(int16_t nBut, bool longClick, int16_t nClick); //обработка события click
     bool getStat();

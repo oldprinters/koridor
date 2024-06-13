@@ -159,7 +159,7 @@ void setup()
     }
     timeClient.begin();
     timeClient.update();
-    timer53L1 = new Timer(500);
+    timer53L1 = new Timer(300);
     client.setServer(mqtt_server, 1883);
     client.setCallback(callback);
     reconnect_mqtt();
@@ -192,17 +192,18 @@ void loop()
 {
   reconnect_mqtt();
 
-  if(timer53L1->getTimer()){  //дальномер
-    sensor.read();
-    timer53L1->setTimer();
-    if(sensor.ranging_data.range_status == VL53L1X::RangeStatus::RangeValid){
-        light_1.setLidar(sensor.ranging_data.range_mm);
+  //дальномер
+      if(timer53L1->getTimer()){
+        timer53L1->setTimer();
+  sensor.read();
+  if(sensor.ranging_data.range_status == VL53L1X::RangeStatus::RangeValid){
+      light_1.setLidar(sensor.ranging_data.range_mm);
         client.publish(msg_lidar, String(sensor.ranging_data.range_mm).c_str());
-    }
+      }
   }
+
   //....... измерение освещённости
-  if (tLux.getTimer() && lightMeter.measurementReady()) {
-    tLux.setTimer();
+  if (lightMeter.measurementReady()) {
     lux = lightMeter.readLightLevel();
     if(light_1.setLux(lux))
       client.publish(msg_light, String(lux).c_str());
@@ -210,6 +211,7 @@ void loop()
         // Serial.println(lux);
   }
   
+  //............. движение
   motion_func();  //проверка движения
 
   // //-------------------------------------------------------------------------------- BUTTONS

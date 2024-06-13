@@ -5,7 +5,6 @@
 void ManagerLed::init(){
     moveStat = new MoveStat();
     moveStat -> setDt(FOLLOW_ME_TIME);
-    queue.push_back(Events::MOVE);
     timerExtern.setDt(5000);
 }
 //_____-------------------------------------------
@@ -32,8 +31,6 @@ char const* ManagerLed::getModeName(){
         case Status::AUTO: pStr = "Auto"; break;
         default: pStr = "Def"; break;
     }
-    changesMade = false;
-
     return pStr;
 }
 //-------------------------------------------
@@ -53,7 +50,6 @@ int16_t ManagerLed::triggerAuto(){
 }
 //-------------------------------------------
 int16_t ManagerLed::clickBut(int16_t nBut, bool shortClick, int16_t nClick){
-    queue.push_back(Events::BUTTOM);
     if(nBut == 0){
         if(!shortClick){
             toggleMax();
@@ -93,83 +89,38 @@ void ManagerLed::setNightLevelOff(){
 //-------------------------------------------------------
 //если появился объект, то в режиме AUTO включается свет
 void ManagerLed::setLidar(int16_t mm){
-    //presence
-    bool pr = mm < MAX_LENGTH? true: false;
-    if(pr != presence){
-        queue.push_back(Events::LIDAR);
-        presence = pr;
-    }
+    presence = mm < MAX_LENGTH? true: false; //присутствие
 }
 //---------------------------------------------
 void ManagerLed::setMotion(bool st){
-    if(moveStat->setMotion(st))
-        queue.push_back(Events::MOVE); //фиксируем движение
+    moveStat->setMotion(st);
 }
 //-------------------------------------
 bool ManagerLed::cycle(){
     OneLed::cycle();    //текущее состояние
-    if(moveStat->cycle())
-        queue.push_back(Events::MOVE); //фиксируем движение
-    bool res = moveStat->getStat();   //наличие движения
+    moveStat->cycle();
+
+    bool moveOn = moveStat->getStat();   //наличие движения
+
     if( extLight && timerExtern.getTimer() ){
         setNightLevelOff();
         extLight = false;
     }
-    if(queue.size() > 0){
-        for(auto d: queue){
-            switch(d){
-                case Events::BUTTOM: break;
-                case Events::LIDAR: 
-                    if(presence && (stat == Status::AUTO)){
-                        if(!light){
-                            OneLed::setStat(StatLed::ON);
-                            OneLed::setMediumLevel();   
-                            extLight = false;
-                        } else {
-                            OneLed::setOff();
-                        }
-                    }
-                    break;
-                case Events::MOVE:
-                    if( res ){
-                        if(stat == Status::AUTO && !OneLed::getStatOn() && !light){
-                            OneLed::setStat(StatLed::ON);
-                            extLight = false;
-                            // if(nowDay())
-                            OneLed::setMediumLevel();
-                            // else
-                            //     OneLed::setNightLevel();
-                        }
-                    } else {
-                        pSensor->read();
-                        // Serial.print((*pSensor).ranging_data.range_status != VL53L1X::RangeStatus::RangeValid);
-                        // Serial.print(", mm = ");
-                        // Serial.println((*pSensor).ranging_data.range_mm);
-                        if(((*pSensor).ranging_data.range_status != VL53L1X::RangeStatus::RangeValid)
-                            && ((*pSensor).ranging_data.range_mm > MAX_LENGTH)){
-                                if(stat == Status::AUTO){
-                                    OneLed::setOff();
-                                }
-                        }
-                    }
-                    break;
-                case Events::LIGHT: 
-                    if(stat == Status::AUTO && !OneLed::getStatOn() && !light && 
-                    ((*pSensor).ranging_data.range_status == VL53L1X::RangeStatus::RangeValid) &&
-                    ((*pSensor).ranging_data.range_mm < MAX_LENGTH)){
-                        OneLed::setStat(StatLed::ON);
-                        OneLed::setMediumLevel();
-                        extLight = false;
-                    } else if(stat == Status::AUTO && (OneLed::getStat() == StatLed::ON) && light){
-                        OneLed::setStat(StatLed::OFF);
-                    }
-                    break;
+
+    if(stat == Status::AUTO){
+        if(moveOn || presence){
+            if(!light && !OneLed::getStatOn()){
+                    OneLed::setStat(StatLed::ON);
+                    OneLed::setMediumLevel();
+                    extLight = false;
             }
+        } else {
+            if(OneLed::getStat() == StatLed::ON)
+                OneLed::setStat(StatLed::OFF);
         }
-        queue.clear();
-        changesMade = true;
     }
-    return res;
+
+    return true;
 }
 //----------------------------------------------------
 bool ManagerLed::getStat(){
@@ -187,7 +138,6 @@ bool ManagerLed::setLux(float l){
         light = true;
     }
     if(dlight != light){
-        queue.push_back(Events::LIGHT);
         res = true;
     }
     // Serial.print("light = ");
@@ -205,13 +155,4 @@ bool ManagerLed::nowDay(){
 //     res = (hour > 8) && (hour < 24);
 //   return res;
     return true;
-}
-//------------------------------------------------
-void  ManagerLed::printQueue(){
-    if(queue.size() > 0){
-        Serial.print("queue: ");
-        for(auto i: queue){
-            Serial.println(static_cast<int>(i));
-        }
-    }
 }
