@@ -4,8 +4,6 @@
 #include <WiFiUdp.h>
 #include <PubSubClient.h>
 #include "Timer.h"
-#include "movestat.h"
-#include "managerLed.h"
 #include "OneLed.h"
 #include <Wire.h>
 #include <BH1750.h> 
@@ -13,24 +11,22 @@
 #include <ld2410.h>
 //-----------------------------------------------------
 ld2410 radar;
-int16_t zone{0};
-int16_t zoneNew{0};
+bool led1_On{true};
+bool led2_On{true};
 int16_t dist{0};
 int16_t distNew{0};
-bool presenceLd{false};
 Timer tLed1(5000);
 Timer tLed2(2000);
 
-WiFiUDP ntpUDP;
-NTPClient timeClient(ntpUDP, "pool.ntp.org", 10800, 3600000);
-NTPClient* ptk = &timeClient;
+enum class Motion : uint8_t {
+  None,
+  Far,
+  Near,
+} motion;
 
-const int16_t pinMove{14};
-volatile bool motion{0};  //признак изменения движения
-// //*--------------------------------------------
-const int pinLedR{27};
-const int pinLedG{26};
-const int pinLedB{25};
+WiFiUDP ntpUDP;
+// NTPClient timeClient(ntpUDP, "pool.ntp.org", 10800, 3600000);
+
 //---------------------------------------------
 const char* ssid = "ivanych";
 const char* password = "stroykomitet";
@@ -48,10 +44,14 @@ const char* lightNightOff = "koridor/lightNightOff";
 //---------------------------------------------
 BH1750 lightMeter(0x23);  //0x5c 23
 float lux{8000};  //яркость света в помещении
+const uint16_t LEVEL_LIGHT = 40;
+Timer timerMqtt(1000);
 //---------------------------------------------
 const int16_t pinLed{12};
 const int16_t MEDIUM_LEVEL = 100;
-ManagerLed light_1(pinLed, 0, MEDIUM_LEVEL, &timeClient);
+const int16_t FAR_LEVEL = 20;
+const int16_t NEAR_LEVEL = 120;
+OneLed oneLed(pinLed);
 //--------------------------------------
 void callback(char* topic, byte* payload, unsigned int length) {
   String str = {};
@@ -62,9 +62,9 @@ void callback(char* topic, byte* payload, unsigned int length) {
     str += (char)payload[i];
   }
 
-  if(strTopic == msgHSMotion){
-    light_1.extLightOn();
-  }
+  // if(strTopic == msgHSMotion){
+  //   light_1.extLightOn();
+  // }
 }
 //-----------------------------------
 void reconnect_mqtt() {
@@ -77,7 +77,7 @@ void reconnect_mqtt() {
       Serial.println(clientId);
       if (client.connect(clientId.c_str())) {
         Serial.println("connected");
-        client.subscribe(msgHSMotion, 0);
+        // client.subscribe(msgHSMotion, 0);
         client.subscribe(msgLightOff, 0);
         client.subscribe(msgLightOn, 0);
       } else {
@@ -92,15 +92,8 @@ void reconnect_mqtt() {
     client.loop();  //mqtt
   }
 }
-//*********************************************
-void IRAM_ATTR moving(){
-  motion = true;
-}
 //******************************
-void setup()
-{
-    pinMode(pinLedG, OUTPUT);
-
+void setup() {
     Serial.begin(115200);
     Wire.begin();
     // Wire.setClock(400000); // use 400 kHz I2C
@@ -113,16 +106,15 @@ void setup()
     Serial.println(F("not connected"));
   }
 
+  WiFi.begin(ssid, password); // initialise Wi-Fi and wait
 
-    WiFi.begin(ssid, password); // initialise Wi-Fi and wait
+  while (WiFi.status() != WL_CONNECTED){
+      Serial.print(".");
+      delay(500);
+  }
 
-    while (WiFi.status() != WL_CONNECTED){
-        Serial.print(".");
-        delay(500);
-    }
-
-    timeClient.begin();
-    timeClient.update();
+    // timeClient.begin();
+    // timeClient.update();
 
     client.setServer(mqtt_server, 1883);
     client.setCallback(callback);
@@ -136,64 +128,76 @@ void setup()
       Serial.println(F("Error initialising BH1750"));
     }
 }
-//------------------------------------------------------------------------
-bool radarFunc(){
-  radar.read(); //Always read frames from the sensor
-  if(radar.isConnected()){
-    if(radar.presenceDetected()){
-      if(radar.stationaryTargetDetected()){
-        // uint16_t dist = radar.stationaryTargetDistance();
-        distNew = radar.stationaryTargetDistance();
-        // Serial.println(radar.stationaryTargetEnergy());
+//--------------------------------------------------------
+void sendMqtt(){
+  if(client.connected() && timerMqtt.getTimer())   {
+    timerMqtt.setTimer();
+    client.publish(msgMotion, String(dist).c_str());
+  }
+}
+//--------------------------------------------------------
+Motion radarFunc(){
+	radar.read(); //Always read frames from the sensor
+	if(radar.isConnected()){
+		if(radar.presenceDetected()){
+			if(radar.stationaryTargetDetected()){
+				distNew = radar.stationaryTargetDistance();
+				uint16_t energy = radar.stationaryTargetEnergy();
+				// client.publish(msgMotion, String(dist).c_str());
+        sendMqtt();
+				if((energy > 30) && (distNew < 325)){
+					dist = distNew;
+					if(dist < 200){
+						led1_On = true;
+						tLed1.setTimer();
+					}else {
+						if(tLed1.getTimer()){
+							led2_On = true;
+							tLed2.setTimer();
+						}
+					}
+				} 
+			}
+			uint16_t distMove = radar.movingTargetDistance();
+			uint16_t energyMove = radar.movingTargetEnergy();
+			if((distMove > 0) && (distMove < 350) && energyMove > 30){
+				tLed2.setTimer();
+				led2_On = true;
+			}
+		}
+	} else {
+		Serial.println(F("not connected"));
+		// client.publish(msgMotion,  String(z).c_str());
+	}
 
-        // zoneNew = dist / 75;
-        if((radar.stationaryTargetEnergy() > 50) && (abs(distNew - dist) > 30)){
-          // zone = zoneNew;
-          dist = distNew;
-          client.publish(msgMotion, String(distNew).c_str());
-          if(distNew < 300){
-            // digitalWrite(PinOutDis, LOW);
-            presenceLd = true;
-            if(distNew < 250){
-              led1_On = true;
-              tLed1.setTimer();
-              digitalWrite(PinOutLd, HIGH);
-            }else {
-              digitalWrite(PinOutLd, LOW);
-            }
-            if(zoneNew > 2){
-              led2_On = true;
-              tLed2.setTimer();
-              digitalWrite(PinOutPres, HIGH);
-            }else {
-              digitalWrite(PinOutPres, LOW);
-            }
-          } else {
-            presenceLd = false;
-            // digitalWrite(PinOutDis, HIGH);
-            digitalWrite(PinOutPres, LOW);
-            digitalWrite(PinOutLd, LOW);
-          }
-        } 
-      }
-      if(radar.movingTargetDetected()){
-        uint16_t distMove = radar.movingTargetDistance();
-        digitalWrite(PinOutDis, HIGH);
-        tLed2.setTimer();
-        led2_On = true;
-      //   Serial.print(F(". Moving target: "));
-      //   Serial.print(radar.movingTargetDistance());
-      //   // Serial.print(F("cm energy: "));
-      //   // Serial.println(radar.movingTargetEnergy());
-      } else digitalWrite(PinOutDis, LOW);
-      // Serial.println();
-    } else {
-      if(zoneNew != zone){
-        client.publish(msgMotion,  String(zoneNew).c_str());
-        zone = -1;
-      }
-      zoneNew = -1;
+  if(tLed1.getTimer() && led1_On)  {
+    led1_On = false;
+  }
+  
+  if(tLed2.getTimer()  && led2_On) {
+    led2_On = false;
+  }
+  
+  if(led1_On){
+		motion = Motion::Near;
+  } else if(led2_On){
+		motion = Motion::Far;
+  } else {
+		motion = Motion::None;
+  }
+	return motion;
+}
+//----------------------------------------------------------
+void controlLed(Motion motion, float luxL) {
+  if(luxL < LEVEL_LIGHT)
+    switch (motion) {
+      case Motion::None: oneLed.setOff(); break;
+      case Motion::Near: oneLed.setDim(NEAR_LEVEL); break;
+      case Motion::Far: oneLed.setDim(FAR_LEVEL); break;
     }
+  else {
+    oneLed.setOff();
+  }
 }
 //------------------------------------------------------------------------
 void loop()
@@ -203,12 +207,8 @@ void loop()
   //....... измерение освещённости
   if (lightMeter.measurementReady()) {
     lux = lightMeter.readLightLevel();
-    if(light_1.setLux(lux))
-      client.publish(msg_light, String(lux).c_str());
-        // Serial.print("lux = ");
-        // Serial.println(lux);
   }
-  
-  //............. движение
-  light_1.cycle();
+  controlLed(radarFunc(), lux);
+
+  oneLed.cycle();
 }

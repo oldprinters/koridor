@@ -26,8 +26,7 @@
 	}
 //*************************************************
 void OneLed::setDim(int l) {
-	levelDim = l;	// < levelDim ? l : levelDim; 
-//	Serial.println(levelDim);
+	levelDim = l;
 }
 //***********************************************
 bool OneLed::onMaxLevel(){
