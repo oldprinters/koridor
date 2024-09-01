@@ -17,7 +17,7 @@ int16_t dist{0};
 int16_t distNew{0};
 Timer tLed1(5000);
 Timer tLed2(2000);
-
+//*************************************************** */
 enum class Motion : uint8_t {
   None,
   Far,
@@ -42,6 +42,8 @@ const char* msgLightOn = "koridor/lightOn";
 const char* lightNightOn = "koridor/lightNightOn";
 const char* lightNightOff = "koridor/lightNightOff";
 //---------------------------------------------
+Timer timerHS(4000);  //время реакции на движение Hall_small
+//---------------------------------------------
 BH1750 lightMeter(0x23);  //0x5c 23
 float lux{8000};  //яркость света в помещении
 const uint16_t LEVEL_LIGHT = 40;
@@ -49,8 +51,9 @@ Timer timerMqtt(1000);
 //---------------------------------------------
 const int16_t pinLed{12};
 const int16_t MEDIUM_LEVEL = 100;
+const int16_t NEAR_LEVEL = 150;
 const int16_t FAR_LEVEL = 20;
-const int16_t NEAR_LEVEL = 120;
+const int16_t FAR_FAR_LEVEL = 8;
 OneLed oneLed(pinLed);
 //--------------------------------------
 void callback(char* topic, byte* payload, unsigned int length) {
@@ -62,9 +65,9 @@ void callback(char* topic, byte* payload, unsigned int length) {
     str += (char)payload[i];
   }
 
-  // if(strTopic == msgHSMotion){
-  //   light_1.extLightOn();
-  // }
+  if(strTopic == msgHSMotion){
+    timerHS.setTimer();
+  }
 }
 //-----------------------------------
 void reconnect_mqtt() {
@@ -77,7 +80,7 @@ void reconnect_mqtt() {
       Serial.println(clientId);
       if (client.connect(clientId.c_str())) {
         Serial.println("connected");
-        // client.subscribe(msgHSMotion, 0);
+        client.subscribe(msgHSMotion, 0);
         client.subscribe(msgLightOff, 0);
         client.subscribe(msgLightOn, 0);
       } else {
@@ -137,8 +140,8 @@ void sendMqtt(){
 }
 //--------------------------------------------------------
 Motion radarFunc(){
-	radar.read(); //Always read frames from the sensor
 	if(radar.isConnected()){
+  	radar.read(); //Always read frames from the sensor
 		if(radar.presenceDetected()){
 			if(radar.stationaryTargetDetected()){
 				distNew = radar.stationaryTargetDistance();
@@ -166,7 +169,7 @@ Motion radarFunc(){
 			}
 		}
 	} else {
-		Serial.println(F("not connected"));
+		// Serial.println(F("not connected"));
 		// client.publish(msgMotion,  String(z).c_str());
 	}
 
@@ -197,6 +200,7 @@ void controlLed(Motion motion, float luxL) {
     }
   else {
     oneLed.setOff();
+    client.publish(msgMotion,  String(luxL).c_str());
   }
 }
 //------------------------------------------------------------------------
@@ -208,7 +212,12 @@ void loop()
   if (lightMeter.measurementReady()) {
     lux = lightMeter.readLightLevel();
   }
-  controlLed(radarFunc(), lux);
 
+  Motion motionL = radarFunc();
+  if(!timerHS.getTimer() && (motionL == Motion::None)) {
+    oneLed.setDim(FAR_FAR_LEVEL);
+  } else {
+    controlLed(motionL, lux);
+  }
   oneLed.cycle();
 }
